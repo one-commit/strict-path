@@ -1,0 +1,10 @@
+{
+  // Node-only dev tooling (tsup/vitest configs).
+  // No DOM lib — keeps script typecheck honest about what's available in Node.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["tsup.config.ts", "vitest.config.ts"]
+}

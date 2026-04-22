@@ -1,0 +1,8 @@
+node_modules/
+dist/
+prompts/
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/

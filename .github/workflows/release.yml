@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # required for npm --provenance
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Step 1 — release-please reads conventional commits since the last release,
+  # opens (or updates) a Release PR with:
+  #   - bumped package.json version
+  #   - auto-generated CHANGELOG.md
+  # Nothing is published yet. The PR is the human gate.
+  # ---------------------------------------------------------------------------
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.rp.outputs.release_created }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ---------------------------------------------------------------------------
+  # Step 2 — only runs when the Release PR was merged (release-please marks the
+  # resulting commit by setting `release_created: true`). Verifies everything
+  # one more time, then publishes to npm with provenance.
+  # ---------------------------------------------------------------------------
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+
+      - run: npm ci
+
+      - name: Publish to npm
+        run: NODE_AUTH_TOKEN="" npm publish --provenance --access public

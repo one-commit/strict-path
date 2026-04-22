@@ -1,0 +1,84 @@
+{
+  "name": "strict-path",
+  "version": "0.1.1",
+  "description": "Environment-agnostic, type-safe URL builder for TypeScript",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "author": {
+    "email": "one@gmail.com",
+    "name": "OneCommit",
+    "url": "https://github.com/one-commit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/one-commit/strict-path.git"
+  },
+  "homepage": "https://github.com/one-commit/strict-path#readme",
+  "bugs": {
+    "url": "https://github.com/one-commit/strict-path/issues"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "commit": "cz",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "validate": "npm run lint && npm run typecheck && npm test",
+    "build": "tsup",
+    "prepublishOnly": "node -e \"if (!process.env.GITHUB_ACTIONS) { console.error('🚨 Publishing is only allowed via GitHub Actions!'); process.exit(1); }\" && npm run validate && npm run build",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "url",
+    "typescript",
+    "type-safe",
+    "url-builder",
+    "router",
+    "path"
+  ],
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@types/node": "^25.6.0",
+    "commitizen": "^4.3.1",
+    "cz-git": "^1.12.0",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.59.0",
+    "vitest": "^4.1.4"
+  }
+}
