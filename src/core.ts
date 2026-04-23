@@ -338,7 +338,11 @@ export function createPaths<
 }
 
 function buildHash(hash: string | undefined): string {
-  if (!hash) return '';
+  if (hash === undefined) return '';
+  if (hash === '') {
+    pathWarn('Empty string passed as hash — no fragment will be appended');
+    return '';
+  }
   return `#${encodeURIComponent(hash)}`;
 }
 

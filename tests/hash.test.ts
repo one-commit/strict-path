@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createPaths } from '../src';
+import * as logs from '../src/logs';
 
 describe('hash fragment', () => {
   it('appends literal hash', () => {
@@ -44,5 +45,13 @@ describe('hash fragment', () => {
     expect(pathTo('/x', { query: { q: 'foo' }, hash: 'top' })).toBe(
       '/x?q=foo#top',
     );
+  });
+
+  it('warns and omits fragment when hash is empty string', () => {
+    const warn = vi.spyOn(logs, 'pathWarn').mockImplementation(() => {});
+    const pathTo = createPaths<{ '/x': { hash: string } }>();
+    expect(pathTo('/x', { hash: '' })).toBe('/x');
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 });
