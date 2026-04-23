@@ -15,6 +15,11 @@ describe('hash fragment', () => {
     expect(pathTo('/x', { hash: 'a b' })).toBe('/x#a%20b');
   });
 
+  it('encodes unicode characters in hash', () => {
+    const pathTo = createPaths<{ '/x': { hash: string } }>();
+    expect(pathTo('/x', { hash: '한글' })).toBe('/x#%ED%95%9C%EA%B8%80');
+  });
+
   it('returns path without # when hash is optional and omitted', () => {
     const pathTo = createPaths<{ '/settings': { hash?: 'a' | 'b' } }>();
     expect(pathTo('/settings')).toBe('/settings');

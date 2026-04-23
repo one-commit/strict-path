@@ -82,6 +82,13 @@ describe('query string', () => {
     expect(pathTo('/s', { query: {} })).toBe('/s');
   });
 
+  it('encodes unicode characters in query values', () => {
+    const pathTo = createPaths<{ '/s': { query: { q: string } } }>();
+    expect(pathTo('/s', { query: { q: '한글' } })).toBe(
+      '/s?q=%ED%95%9C%EA%B8%80',
+    );
+  });
+
   it('combines with params', () => {
     const pathTo = createPaths<{
       '/users/{id}/posts': {
@@ -95,6 +102,15 @@ describe('query string', () => {
         query: { page: 2 },
       }),
     ).toBe('/users/1/posts?page=2');
+  });
+});
+
+describe('comma array + empty array', () => {
+  it('omits key when array is empty', () => {
+    const pathTo = createPaths<{ '/s': { query: { t: string[] } } }>({
+      querySerialization: { array: 'comma' },
+    });
+    expect(pathTo('/s', { query: { t: [] } })).toBe('/s');
   });
 });
 
@@ -139,5 +155,19 @@ describe('comma array + serialization options', () => {
       querySerialization: { array: 'comma', boolean: 'flag' },
     });
     expect(pathTo('/s', { query: { flags: [false, false] } })).toBe('/s');
+  });
+});
+
+describe('querySerialization option combinations', () => {
+  it('array:comma + boolean:flag + empty:keep all apply together', () => {
+    const pathTo = createPaths<{
+      '/s': { query: { t: string[]; active: boolean } };
+    }>({
+      querySerialization: { array: 'comma', boolean: 'flag', empty: 'keep' },
+    });
+    expect(pathTo('/s', { query: { t: ['', 'b'], active: true } })).toBe(
+      '/s?t=,b&active',
+    );
+    expect(pathTo('/s', { query: { t: ['a'], active: false } })).toBe('/s?t=a');
   });
 });
