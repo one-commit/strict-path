@@ -97,3 +97,47 @@ describe('query string', () => {
     ).toBe('/users/1/posts?page=2');
   });
 });
+
+describe('comma array + serialization options', () => {
+  it('omits empty-string elements with default empty:omit', () => {
+    const pathTo = createPaths<{ '/s': { query: { t: string[] } } }>({
+      querySerialization: { array: 'comma' },
+    });
+    expect(pathTo('/s', { query: { t: ['', 'b'] } })).toBe('/s?t=b');
+    expect(pathTo('/s', { query: { t: ['a', '', 'c'] } })).toBe('/s?t=a,c');
+  });
+
+  it('omits entire key when all elements are empty strings with empty:omit', () => {
+    const pathTo = createPaths<{ '/s': { query: { t: string[] } } }>({
+      querySerialization: { array: 'comma' },
+    });
+    expect(pathTo('/s', { query: { t: ['', ''] } })).toBe('/s');
+  });
+
+  it('keeps empty-string elements when empty:keep', () => {
+    const pathTo = createPaths<{ '/s': { query: { t: string[] } } }>({
+      querySerialization: { array: 'comma', empty: 'keep' },
+    });
+    expect(pathTo('/s', { query: { t: ['', 'b'] } })).toBe('/s?t=,b');
+    expect(pathTo('/s', { query: { t: ['', ''] } })).toBe('/s?t=,');
+  });
+
+  it('omits false elements in comma array when boolean:flag', () => {
+    const pathTo = createPaths<{ '/s': { query: { flags: boolean[] } } }>({
+      querySerialization: { array: 'comma', boolean: 'flag' },
+    });
+    expect(pathTo('/s', { query: { flags: [true, false, true] } })).toBe(
+      '/s?flags=true,true',
+    );
+    expect(pathTo('/s', { query: { flags: [true, false] } })).toBe(
+      '/s?flags=true',
+    );
+  });
+
+  it('omits entire key when all boolean elements are false in comma array with boolean:flag', () => {
+    const pathTo = createPaths<{ '/s': { query: { flags: boolean[] } } }>({
+      querySerialization: { array: 'comma', boolean: 'flag' },
+    });
+    expect(pathTo('/s', { query: { flags: [false, false] } })).toBe('/s');
+  });
+});
