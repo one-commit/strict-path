@@ -1,6 +1,6 @@
 {
   "name": "strict-path",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Environment-agnostic, type-safe URL builder for TypeScript",
   "type": "module",
   "sideEffects": false,

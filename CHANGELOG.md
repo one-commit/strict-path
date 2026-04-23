@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/one-commit/strict-path/compare/strict-path-v0.1.1...strict-path-v1.0.0) (2026-04-23)
+
+
+### release
+
+* v1.0.0 ([#1](https://github.com/one-commit/strict-path/issues/1)) ([98cd8a0](https://github.com/one-commit/strict-path/commit/98cd8a0675994e09f103e0472bf52682fe16faa7))
+
 ## [0.1.1](https://github.com/one-commit/strict-path/compare/strict-path-v0.1.0...strict-path-v0.1.1) (2026-04-21)
 
 
