@@ -68,4 +68,12 @@ describe('global prefix [name]', () => {
     }>({ prefix: { cc: () => undefined } });
     expect(() => pathTo('/[cc]/x')).toThrow(/resolver returned undefined/);
   });
+
+  it('collapses // in protocol-relative prefix (known limitation — not supported)', () => {
+    const pathTo = createPaths<{ '[cdn]/img': {} }>({
+      prefix: { cdn: '//cdn.example.com' },
+    });
+    // protocol-relative URLs are not supported: // is collapsed to / by normalizeSlashes
+    expect(pathTo('[cdn]/img')).toBe('/cdn.example.com/img');
+  });
 });

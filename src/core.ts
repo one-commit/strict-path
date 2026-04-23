@@ -338,7 +338,11 @@ export function createPaths<
 }
 
 function buildHash(hash: string | undefined): string {
-  if (!hash) return '';
+  if (hash === undefined) return '';
+  if (hash === '') {
+    pathWarn('Empty string passed as hash — no fragment will be appended');
+    return '';
+  }
   return `#${encodeURIComponent(hash)}`;
 }
 
@@ -431,10 +435,17 @@ function buildQuery(
         }
       } else {
         if (value.length === 0) continue;
-        const joined = value
-          .map((v) => encodeURIComponent(String(v)))
-          .join(',');
-        parts.push(`${encodeURIComponent(key)}=${joined}`);
+        const segments: string[] = [];
+        for (const v of value) {
+          if (v === '' && emptyStyle === 'omit') continue;
+          if (typeof v === 'boolean' && booleanStyle === 'flag') {
+            if (v) segments.push('true');
+          } else {
+            segments.push(encodeURIComponent(String(v)));
+          }
+        }
+        if (segments.length === 0) continue;
+        parts.push(`${encodeURIComponent(key)}=${segments.join(',')}`);
       }
     } else {
       const part = renderEntry(

@@ -64,3 +64,8 @@ test('ParamOf reflects explicit catch-all declaration as-is', () => {
   type P = ParamOf<typeof pathTo, '/x/{...slug}'>;
   expectTypeOf<P>().toEqualTypeOf<{ slug: string[] }>();
 });
+
+test('route with {name} in path but no param declared is a type error', () => {
+  // @ts-expect-error — path has {id} but no param field declared in route def
+  createPaths<{ '/users/{id}': {} }>();
+});
