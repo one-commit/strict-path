@@ -1,6 +1,24 @@
 # strict-path
 
-> Environment-agnostic, type-safe URL builder for TypeScript. Build route URLs, API endpoints, asset URLs — anywhere you string-concat URLs today. Zero codegen, zero runtime dependencies.
+<p align="center">
+  <img src="./assets/strict-path-icon.png" width="100px" align="center" alt="strict-path logo" />
+  <h1 align="center">strict-path</h1>
+  <p align="center">
+    Type-safe path builder for TypeScript
+  </p>
+</p>
+
+<div align="center">
+  <a href="https://www.npmjs.com/package/strict-path">
+    <img src="https://img.shields.io/npm/v/strict-path" alt="npm version" />
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" />
+  </a>
+  <p>
+Type-safe path builder for TypeScript page routes, API endpoints, CDN assets, public paths, and more. Zero codegen, zero runtime dependencies.
+  </p>
+</div>
 
 ```ts
 const pathTo = createPaths<{
@@ -33,9 +51,16 @@ pathTo('/[tenant]/dashboard'); // '/acme/dashboard'
   - [React + context](#react--context)
   - [Typed API client](#typed-api-client)
   - [CDN / versioned assets](#cdn--versioned-assets)
+  - [Public / static paths](#public--static-paths)
 - [API reference](#api-reference)
 - [Error handling](#error-handling)
 - [FAQ](#faq)
+  - [Why no async prefix resolvers?](#why-no-async-prefix-resolvers)
+  - [What about pre-encoded values?](#what-about-pre-encoded-values)
+  - [Why is `param` enforced at the declaration site?](#why-is-param-enforced-at-the-declaration-site)
+  - [Why forbid `/` inside a single-segment `{name}`?](#why-forbid--inside-a-single-segment-name)
+  - [Why are protocol-relative URLs (`//`) not supported?](#why-are-protocol-relative-urls--not-supported)
+  - [What makes `strict-path` different?](#what-makes-strict-path-different)
 - [Comparison](#comparison)
 - [License](#license)
 
@@ -43,23 +68,14 @@ pathTo('/[tenant]/dashboard'); // '/acme/dashboard'
 
 ## Why strict-path?
 
-You probably write URLs like this today:
+Whenever you string-concat a path — a page route, an API endpoint, a CDN asset URL, a file path — you're one typo away from a silent runtime bug:
 
-```ts
-const url = `/users/${id}?tab=posts`;
-fetch(`${API_BASE}/v1/users/${id}`);
-router.push(`/tenant/${tenant}/dashboard`);
-```
-
-Each is a quiet footgun:
-
-- Typos in paths (`/user/` vs `/users/`) never get caught
+- Path typos (`/user/` vs `/users/`) are never caught
 - Param names drift when routes are renamed — compiler stays silent
-- No autocomplete on URL options
 - Encoding is easy to forget (`#`, `/`, `&`, Unicode)
-- Tenant/locale/CDN prefixes get string-concatenated by hand each time
+- Tenant/locale/CDN prefixes get duplicated by hand at every call site
 
-`strict-path` takes your URL patterns as TypeScript types and returns an autocomplete-friendly builder. No codegen. No runtime dependencies. Works alongside your existing router, fetch client, or framework.
+`strict-path` lets you declare **any kind of path** as TypeScript types and gives you an autocomplete-friendly builder in return. One package for routes, endpoints, assets, and beyond.
 
 ---
 
@@ -97,6 +113,8 @@ pathTo('/settings', { hash: 'account' });
 TypeScript catches mistakes before they run:
 
 ```ts
+pathTo('/users/{id}', { param: { id: 1 } }); // ✅ '/users/1'
+
 pathTo('/user/{id}', { param: { id: 1 } }); // ❌ '/user/{id}' is not declared
 pathTo('/users/{id}'); // ❌ required param missing
 pathTo('/users/{id}', { param: { id: 'abc' } }); // ❌ id must be number
@@ -173,6 +191,7 @@ Notes:
 
 - A `/` inside a single-segment `{name}` throws — use `{...name}` for multi-segment.
 - Prefix resolved values with a URL scheme must be `http:` or `https:` (prevents `javascript:` injection).
+- Protocol-relative URLs (`//cdn.example.com`) are **not supported** — `//` is collapsed to `/`. Use `https://` explicitly.
 - Prefix names declared in your templates must all appear in `prefix` — missing keys are compile errors.
 
 ### Required vs optional
@@ -198,6 +217,8 @@ createPaths<{ '/users/{id}': { param: { id: number } } }>(); // ✅
 ```
 
 No automatic `Partial<>` wrapping. What you declare is what the call site sees.
+
+> **Note:** passing `hash: ''` emits a `[strict-path]` console warning and produces no `#` fragment. Express "no hash" by omitting the field or declaring it optional — not by passing an empty string.
 
 ### URL instance output
 
@@ -265,35 +286,43 @@ await fetch(pathTo('[api]/v1/{resource}', { param: { resource: 'users' } }));
 ### Next.js App Router
 
 ```ts
-// src/lib/paths.ts
+// src/lib/paths.ts — shared factory
 import { createPaths } from 'strict-path';
 
-export const createAppPaths = (prefix: { locale: string }) =>
+export const createAppPaths = (getLocale: () => string) =>
   createPaths<{
     '/[locale]/posts/{id}': { param: { id: string } };
     '/[locale]/settings': { hash?: 'account' | 'privacy' };
-  }>({ prefix });
+  }>({ prefix: { locale: getLocale } });
+```
+
+```ts
+// src/lib/paths.server.ts
+import { createAppPaths } from './paths';
+import { getServerLocale } from './locale.server'; // reads from request context (AsyncLocalStorage, React cache, etc.)
+
+export const pathTo = createAppPaths(getServerLocale);
+```
+
+```ts
+// src/lib/paths.client.ts
+import { createAppPaths } from './paths';
+import { getClientLocale } from './locale.client'; // reads from React context or global store
+
+export const pathTo = createAppPaths(getClientLocale);
 ```
 
 ```tsx
-// app/[locale]/page.tsx (server component)
-import { cookies } from 'next/headers';
-import Link from 'next/link';
-import { createAppPaths } from '@/lib/paths';
+// Server component — import from paths.server
+import { pathTo } from '@/lib/paths.server';
+<Link href={pathTo('/[locale]/posts/{id}', { param: { id: 'abc' } })}>Read more</Link>
 
-export default async function Page() {
-  const locale = (await cookies()).get('locale')?.value ?? 'en';
-  const pathTo = createAppPaths({ locale });
-
-  return (
-    <Link href={pathTo('/[locale]/posts/{id}', { param: { id: 'abc' } })}>
-      Read more
-    </Link>
-  );
-}
+// Client component — import from paths.client
+import { pathTo } from '@/lib/paths.client';
+<Link href={pathTo('/[locale]/settings')}>Settings</Link>
 ```
 
-Server components `await` upstream and pass resolved values in. `pathTo` itself is always synchronous → plug it directly into JSX.
+Same factory, different locale resolvers. `pathTo` is always synchronous — plug it directly into JSX or any synchronous context.
 
 ### React + context
 
@@ -335,16 +364,27 @@ import { createPaths } from 'strict-path';
 
 const api = createPaths<{
   '[base]/v1/users/{id}': { param: { id: string } };
-  '[base]/v1/posts': { query: { page?: number; sort?: 'asc' | 'desc' } };
-  '[base]/v1/search': { query: { q: string; tags?: string[] } };
+  '[base]/v1/users': { query: { role?: 'admin' | 'user' } };
+  '[base]/v1/posts': {};
 }>({
   prefix: { base: () => process.env.API_URL! },
 });
 
-const res = await fetch(api('[base]/v1/users/{id}', { param: { id: 'u_1' } }));
+// GET with path param
+const user = await fetch(api('[base]/v1/users/{id}', { param: { id: 'u_1' } }));
+
+// GET with query
+const admins = await fetch(api('[base]/v1/users', { query: { role: 'admin' } }));
+
+// POST — strict-path builds the URL; the request body is your concern
+await fetch(api('[base]/v1/posts'), {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: 'Hello', content: '...' }),
+});
 ```
 
-Combine with `ky`, `ofetch`, or plain `fetch`. `strict-path` builds the URL; your fetch wrapper sends the request.
+`strict-path` builds the URL. Combine with `ky`, `ofetch`, or plain `fetch` for the rest.
 
 ### CDN / versioned assets
 
@@ -361,6 +401,28 @@ const asset = createPaths<{
 asset('[cdn]/[version]/avatars/{userId}.png', { param: { userId: 42 } });
 // 'https://cdn.example.com/v2/avatars/42.png'
 ```
+
+### Public / static paths
+
+Not just URLs — `strict-path` works for any path your code constructs. Here it manages a Next.js `public/` directory layout:
+
+```ts
+const publicPath = createPaths<{
+  '/icon/logo.svg': {};
+  '/images/{name}': { param: { name: string } };
+  '/fonts/{family}.woff2': { param: { family: string } };
+  '/favicon.ico': {};
+}>();
+
+publicPath('/icon/logo.svg');
+// '/icon/logo.svg'
+publicPath('/images/{name}', { param: { name: 'hero.webp' } });
+// '/images/hero.webp'
+publicPath('/fonts/{family}.woff2', { param: { family: 'inter' } });
+// '/fonts/inter.woff2'
+```
+
+The same approach works for Node.js file serving paths, Electron asset paths, or any context where paths are strings you build by hand today.
 
 ---
 
@@ -451,13 +513,32 @@ Every message is prefixed with `[strict-path]`.
 
 ### ❗️ Why no async prefix resolvers?
 
-Resolving a prefix asynchronously (e.g. Next.js 15 `cookies()` in server components) is common. `strict-path`'s answer: `await` upstream, pass the resolved value into `createPaths`.
+Resolving a prefix asynchronously (e.g. Next.js 15 `cookies()` in server components) is common. `strict-path`'s answer: resolve async data upstream, then pass a sync accessor into `createPaths` — often via a factory:
+
+```ts
+// ❌ async resolvers are not supported
+createPaths<{ '/[locale]/posts/{id}': { param: { id: string } } }>({
+  prefix: { locale: async () => await fetchLocale() },
+});
+
+// ✅ build a factory — pass a sync resolver per environment
+const createLocalePaths = (getLocale: () => string) => createPaths<{
+  '/[locale]/posts/{id}': { param: { id: string } };
+  '/[locale]/settings': { hash?: 'account' | 'privacy' };
+}>({
+  prefix: {
+    locale: getLocale
+  }
+});
+
+// Server: resolver reads from AsyncLocalStorage (populated by middleware)
+export const pathTo = createLocalePaths(() => localeStorage.getStore()!);
+
+// Client: resolver reads from React context or a global store
+export const pathTo = createLocalePaths(() => useLocaleStore.getState().locale);
+```
 
 This keeps `pathTo` synchronous — it can appear directly in JSX attributes, template literals, and any synchronous context. Making it async would break this ergonomic property for every call site to handle one edge case.
-
-### Why no codegen?
-
-`strict-path` is pure TypeScript. No build step, no file-system conventions, no plugins. Your routes are a value, your types derive from that value. Faster iteration, no tooling lock-in.
 
 ### What about pre-encoded values?
 
@@ -473,18 +554,28 @@ With auto-inference, `'/users/{id}': {}` would silently accept anything. Enforci
 
 ### Why forbid `/` inside a single-segment `{name}`?
 
-Single segments stay single. If you need multi-segment values, express it directly with a catch-all:
+Single segments stay single. Use a catch-all `{...name}` when your value spans multiple segments:
 
 ```ts
-'/docs/{...path}': { param: { path: string[] } }
-'/docs/{...path}': { param: { path: Array<'foo' | 'bar' | 'baz'> } }
+// ❌ throws PARAM_CONTAINS_SLASH at runtime
+createPaths<{ '/docs/{path}': { param: { path: string } } }>();
+pathTo('/docs/{path}', { param: { path: 'guide/intro' } });
+
+// ✅ catch-all for multi-segment values
+createPaths<{ '/docs/{...path}': { param: { path: string[] } } }>();
+pathTo('/docs/{...path}', { param: { path: ['guide', 'intro'] } });
+// '/docs/guide/intro'
 ```
 
 This makes the intent explicit in the type and prevents accidental path injection via a string that happens to contain `/`.
 
-### How is this different from `typedRoutes` / React Router `href()` / TanStack Router?
+### Why are protocol-relative URLs (`//`) not supported?
 
-Those are full routers (or tied to one). `strict-path` is **only** a URL builder, framework-agnostic, and covers API endpoints and asset URLs too. It composes cleanly with whichever router / fetch client you already use.
+`//cdn.example.com` is collapsed to `/cdn.example.com` by the internal slash-normalizer. Protocol-relative URLs are a legacy pattern — HTTPS is universal today, so there's no need to inherit the page scheme. Use `https://cdn.example.com` in your prefix value.
+
+### What makes `strict-path` different?
+
+`strict-path` is a zero-runtime, zero-dependency path builder. It has no opinion on your router, your fetch client, or your framework — it composes cleanly with whatever you already use. And it's not limited to page routes: the same API covers API endpoints, CDN asset URLs, public static paths, and any other path your code constructs by hand. One package, any runtime, any kind of path.
 
 ---
 
